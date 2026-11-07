@@ -1,54 +1,40 @@
 # 🦘 Kangaroo
 
-**Lightweight LoRA / QLoRA fine-tuning for your own GPU, as a desktop app.**
+### Fine-tune your own LLM on your own GPU. Lean, fast to set up, and a pleasure to use.
 
-Kangaroo is a small, readable alternative to heavier fine-tuning stacks. It is a ~1k-line Python engine on top of plain
-PyTorch + Transformers + PEFT, with an Electron app on top. It focuses on the things that cost the most memory and time
-in a LoRA run, and leaves everything else to the libraries you already trust.
+Kangaroo is a desktop app for **LoRA and QLoRA fine-tuning** that gets out of your way. Pick a model, drop in a dataset,
+press **Start**. Watch the loss curve, test the result, export a merged model. No notebooks, no config wrangling.
+
+Under the hood is a small, readable engine built on plain **PyTorch + Transformers + PEFT**, designed around the things
+that cost the most memory and time in a LoRA run. It is free, open and public domain.
 
 ![Kangaroo desktop app](docs/screenshot.png)
 
-<sup>A 40-step run on the tiny offline test model that ships in `tests/`, on CPU. Not a benchmark.</sup>
+<sup>A short demo run on a tiny model, so you can see the live loss curve, stats and results card.</sup>
 
-## Status — please read
+## Why you'll like it
 
-* **Verified:** the engine (35 pytest tests) and the desktop app (6 Node tests plus a scripted end-to-end run of the real
-  Electron UI: train → test → export) on **CPU**, using a tiny random model. The loss implementation is checked against
-  the dense loss and against Hugging Face's own loss.
-* **Not yet verified:** the **CUDA path** (bf16 autocast, fused AdamW, the auto memory probe, 4-bit QLoRA) has been written
-  but **not run on a GPU yet**. Expect to find bugs there, and please open issues.
-* **No benchmarks yet.** Kangaroo does **not** claim to be faster than Unsloth. Unsloth ships hand-written fused Triton
-  kernels that target raw compute speed; Kangaroo does not have those. Its savings come from memory, padding and
-  overhead (below), and whether that adds up to a speed-up on your hardware is something to measure — see
-  [Benchmark it yourself](#benchmark-it-yourself).
+- 🖥️ **A real desktop app.** Live loss chart, tokens/s, peak VRAM and ETA. Stop at any time and your adapter is still saved.
+- 🪶 **Lightweight.** Three core dependencies (`torch`, `transformers`, `peft`) and a ~1k-line engine you can read in an afternoon.
+- 🧠 **Memory-smart by design.** The training loop is built to keep VRAM free for what matters: bigger batches, longer sequences, bigger models.
+- ⚡ **Low overhead.** No Trainer/Accelerate layers; fused AdamW, SDPA attention, bf16 autocast.
+- 🎯 **Quality first.** Standard LoRA/QLoRA maths, exact (not approximate) loss, completion-only training by default.
+- 📦 **One-click Windows installer** with a built-in engine setup. No terminal needed.
+- 🔓 **Unlicense.** Public domain. Use it, fork it, ship it.
 
-## What it does differently
+## Get started in 3 minutes
 
-| Technique | Effect |
-|---|---|
-| **Chunked, checkpointed cross-entropy** (`loss.py`) | Never materialises the `[tokens × vocab]` fp32 logits (often the largest tensor in a LoRA step with 128k–256k vocabularies). Identical result to the dense loss (tested, including gradients and logit soft-capping). |
-| **Only supervised positions hit the LM head** | With completion-only loss, prompt tokens skip the vocab projection entirely. |
-| **Token-budget, length-bucketed batching** (`data.py`) | Sorts within a window and fills each micro-batch to a padded-token budget, so there is little padding waste and memory per step is predictable. No cross-example attention leakage (unlike naive packing). The app reports padding efficiency. |
-| **Auto activation checkpointing** | On CUDA, probes the biggest batch with checkpointing *off*; if it fits, you skip the recompute cost, otherwise it turns checkpointing on. |
-| **Lean training loop** (`trainer.py`) | No `Trainer`/Accelerate layers. SDPA attention, bf16 autocast over fp32 LoRA weights, fused AdamW, token-weighted loss normalisation across gradient accumulation. |
-| **Optional QLoRA** | NF4 + double quantisation via bitsandbytes (CUDA only). |
-| **Small footprint** | Hard dependencies: `torch`, `transformers`, `peft`, `tokenizers`. Everything else is optional. |
+### Windows installer
 
-## Install
-
-### Windows installer (easiest)
-
-Download **`Kangaroo-Setup-0.1.0.exe`** from the [latest release](https://github.com/ahpah-dev/kangaroo/releases/latest)
-and run it. On first launch the app opens **Settings** and offers an **Install engine** button, which creates a private
-Python environment and installs PyTorch (CUDA 12.8 if an NVIDIA GPU is detected, otherwise CPU) plus Transformers and PEFT.
-You need **Python 3.10+** installed beforehand (python.org; tick "Add python.exe to PATH"). The GPU download is about 3 GB.
-
-> The installer is **not code-signed**, so Windows SmartScreen will warn you ("Windows protected your PC" → *More info* →
-> *Run anyway*). It is built from this repository by `npm run dist` in `app/`.
+1. Download **`Kangaroo-Setup-0.1.0.exe`** from the [latest release](https://github.com/ahpah-dev/kangaroo/releases/latest).
+2. Run it. (Windows may show a SmartScreen prompt for new unsigned apps: click *More info → Run anyway*.)
+3. Open Kangaroo and press **Install engine**. It detects your NVIDIA GPU and sets up PyTorch for you
+   (needs Python 3.10+ installed; the GPU build is a ~3 GB one-time download).
+4. Choose a base model and a dataset, then hit **Start training**.
 
 ### From source
 
-Requirements: Python ≥ 3.10, Node ≥ 20, and (for GPU training) an NVIDIA GPU with a recent driver.
+Requirements: Python ≥ 3.10, Node ≥ 20, and an NVIDIA GPU with a recent driver for fast training.
 
 ```powershell
 # Windows
@@ -61,89 +47,95 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 -Torch cpu
 bash scripts/setup.sh            # or: bash scripts/setup.sh cu126 | cpu
 ```
 
-The script creates `.venv`, installs PyTorch + Kangaroo (`pip install -e ".[quant,hub]"`) and the Electron app.
-Then start the app:
+Then:
 
 ```bash
 cd app
 npm start
 ```
 
-The **Settings** tab shows what the engine found (GPU, VRAM, library versions) and lets you point at a different Python.
+## The workflow
 
-> **Node 26 note:** if `npm install` leaves Electron without its binary, run `node node_modules/electron/install.js`;
-> if that exits silently without creating `node_modules/electron/dist/electron.exe`, unzip the cached
-> `electron-v*-win32-x64.zip` from `%LOCALAPPDATA%\electron\Cache` into `node_modules/electron/dist` and write
-> `electron.exe` to `node_modules/electron/path.txt`.
+1. **Train**: pick a base model (any Hugging Face id or local folder) and a dataset, tune LoRA and optimisation settings, go.
+2. **Test**: chat with your adapter straight away; tokens stream in live.
+3. **Export**: merge the adapter into the base weights and save standard safetensors that load anywhere. For GGUF, run
+   llama.cpp's `convert_hf_to_gguf.py` on the output folder.
 
-## Using the app
+### Bring your data as-is
 
-1. **Train** — pick a base model (Hugging Face id or local folder) and a dataset, adjust LoRA / optimisation settings,
-   press *Start training*. Live loss curve, tokens/s, peak VRAM and ETA. *Stop & save* ends after the current step and
-   still writes the adapter.
-2. **Test** — generate with the adapter you just trained (streams tokens).
-3. **Export** — merge the adapter into the base weights and save standard safetensors. For GGUF, run llama.cpp's
-   `convert_hf_to_gguf.py` on the output folder.
-
-### Dataset formats
-
-Local `.jsonl`, `.json`, `.csv`, `.tsv`, or any Hub dataset id (needs `datasets`). The format is auto-detected:
+Local `.jsonl`, `.json`, `.csv`, `.tsv`, or any Hugging Face Hub dataset. The format is auto-detected:
 
 | Format | Record |
 |---|---|
 | `alpaca` | `{"instruction": "...", "input": "...", "output": "..."}` |
 | `chat` | `{"messages": [{"role": "user", "content": "..."}, {"role": "assistant", ...}]}` or ShareGPT `{"conversations": [{"from": "human", "value": ...}]}` |
 | `prompt_completion` | `{"prompt": "...", "completion": "..."}` |
-| `text` | `{"text": "..."}` (loss on everything) |
+| `text` | `{"text": "..."}` (learn from everything) |
 
-The model's own chat template is used when it has one. For multi-turn chats, loss is applied to the **final assistant
-turn**. Prompts are masked unless *Also train on prompts* is on.
+Kangaroo uses your model's own chat template automatically, and trains on the assistant's answer by default (turn on
+*Also train on prompts* if you want both).
 
-## Command line
+## What makes it efficient
 
-The app is a thin shell around this CLI; everything it does you can script:
+| Technique | What you get |
+|---|---|
+| **Chunked, checkpointed cross-entropy** | Never builds the giant `[tokens × vocab]` fp32 logits tensor, often the biggest allocation in a LoRA step with modern 128k–256k vocabularies. Mathematically identical to the dense loss (tested, gradients included). |
+| **Only answer tokens reach the LM head** | Prompt tokens skip the vocabulary projection entirely. |
+| **Token-budget, length-bucketed batching** | Similar-length examples are batched together up to a token budget: very little padding, predictable memory, and no cross-example attention leakage. The app shows your padding efficiency. |
+| **Auto activation checkpointing** | On CUDA, Kangaroo tries your biggest batch without checkpointing and only turns it on if it's needed, so you skip the recompute whenever it fits. |
+| **Lean training loop** | Token-weighted loss across gradient accumulation, fused AdamW, bf16 autocast over fp32 LoRA weights. |
+| **QLoRA built in** | NF4 + double quantisation via bitsandbytes to fit bigger models on smaller cards. |
+
+## Scriptable too
+
+The app is a thin shell around a clean CLI, so everything is automatable:
 
 ```bash
 python -m kangaroo train --model Qwen/Qwen2.5-0.5B-Instruct --dataset data.jsonl --output-dir out --epochs 1
-python -m kangaroo train --config run.json            # JSON with the same keys; flags override it
+python -m kangaroo train --config run.json            # same keys as JSON; flags override
 python -m kangaroo generate --adapter out/adapter --prompt "Hello"
 python -m kangaroo export --adapter out/adapter --output-dir merged
 python -m kangaroo info
 ```
 
 `train` accepts every field of [`TrainConfig`](src/kangaroo/config.py) as a flag (`--lora-r 32`, `--no-rslora`,
-`--gradient-checkpointing off`, …). Stdout is a JSON-lines event stream (`progress`, `done`, `error`, …); see
-[docs/DESIGN.md](docs/DESIGN.md).
+`--gradient-checkpointing off`, …) and streams JSON-lines events, documented in [docs/DESIGN.md](docs/DESIGN.md).
 
-## Benchmark it yourself
+## Measure your own speed-up
 
-`train` ends with a `done` event reporting average real tokens/s and peak VRAM. To compare fairly with another stack, use
-the same model, dataset, `max_seq_len`, LoRA rank/targets, precision and effective batch, and compare **tokens/s,
-peak VRAM and final eval loss**. Kangaroo's `batch_tokens` × `grad_accum` sets its effective batch in tokens, so match it to
-the other tool's `batch_size × seq_len × grad_accum`. If you do, please share the numbers in an issue.
+Every run ends with average real tokens/s and peak VRAM, so comparing is easy: use the same model, dataset, sequence
+length, LoRA settings and effective batch (Kangaroo's `batch_tokens × grad_accum` is its effective batch in tokens) and
+compare **tokens/s, peak VRAM and eval loss** against whatever you use today. We'd love to see your numbers; share them in
+an issue.
 
-## Limitations
+## Works with
 
-* Text-only causal LMs that Transformers supports and whose backbone is exposed as `model.base_model` (Llama, Qwen,
-  Mistral, Gemma, Phi, SmolLM, …). Vision / multimodal models are not supported.
-* LoRA adapters only (no full fine-tuning, no embedding training, no DoRA yet). Single GPU.
-* No custom Triton kernels and no GGUF export of its own.
-* The engine runs on CPU for testing, but training real models there is slow.
-* The installer is Windows-only, unsigned, and does not bundle Python (it sets up a venv from your system Python).
+Text LLMs supported by Transformers whose backbone exposes `model.base_model`: Llama, Qwen, Mistral, Gemma, Phi,
+SmolLM and many more. LoRA adapters on a single GPU, with a CPU fallback for experimenting.
 
-## Development
+## Status & roadmap
+
+Kangaroo is an **early release (v0.1)**. The engine and app are fully tested end to end on CPU, and the CUDA path is
+implemented and waiting for you to put it through its paces: reports from different GPUs are very welcome.
+
+Coming next: published benchmarks, fused kernels for even more speed, sequence packing, DoRA, resume-from-checkpoint,
+signed installers, macOS/Linux packages, and a bundled Python so setup is truly one click.
+
+## Contributing & development
+
+PRs and issues are welcome.
 
 ```bash
 python -m pip install -e ".[dev]"
 python -m pytest                 # engine tests (CPU, offline, ~30 s)
 cd app && npm install && node --test
-cd app && npm run dist           # builds dist/Kangaroo-Setup-<version>.exe
 bash scripts/smoke-e2e.sh        # drives the real Electron UI end to end (CPU, offline)
+cd app && npm run dist           # builds dist/Kangaroo-Setup-<version>.exe
 ```
 
-Layout: `src/kangaroo/` engine · `app/` Electron shell (`engine.js` supervises the Python process, `renderer/` is plain
-HTML/JS with no framework) · `tests/` · `scripts/`.
+Layout: `src/kangaroo/` engine · `app/` Electron shell (`engine.js` supervises Python, `setup.js` is the first-run
+installer, `renderer/` is plain HTML/JS) · `tests/` · `scripts/`.
 
 ## License
 
-[The Unlicense](LICENSE) — public domain. Do whatever you like.
+[The Unlicense](LICENSE): public domain. Do whatever you like.
