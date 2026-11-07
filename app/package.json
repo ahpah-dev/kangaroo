@@ -1,0 +1,19 @@
+{
+  "name": "kangaroo-app",
+  "version": "0.1.0",
+  "description": "Kangaroo desktop app: lightweight LoRA/QLoRA fine-tuning",
+  "main": "main.js",
+  "license": "Unlicense",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "^39.0.0"
+  },
+  "allowScripts": {
+    "electron@39.8.10": true
+  }
+}

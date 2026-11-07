@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kangaroo-ft"
+version = "0.1.0"
+description = "Kangaroo: lightweight, memory-frugal LoRA/QLoRA fine-tuning engine with a desktop app."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Unlicense" }
+dependencies = [
+  "torch>=2.4",
+  "transformers>=4.56",
+  "peft>=0.13",
+  "tokenizers",
+]
+
+[project.optional-dependencies]
+quant = ["bitsandbytes>=0.43"]   # 4-bit QLoRA (CUDA only)
+hub = ["datasets"]               # load datasets from the Hugging Face Hub
+dev = ["pytest"]
+
+[project.scripts]
+kangaroo = "kangaroo.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

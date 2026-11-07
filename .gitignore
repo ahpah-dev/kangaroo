@@ -1,0 +1,12 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+node_modules/
+dist/
+build/
+kangaroo-out/
+kangaroo-merged/
+app/smoke*.png
+*.log
+.DS_Store

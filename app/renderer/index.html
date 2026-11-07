@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:;">
+  <title>Kangaroo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="logo" aria-hidden="true">🦘</span><span>Kangaroo</span></div>
+    <nav>
+      <button class="tab active" data-tab="train">Train</button>
+      <button class="tab" data-tab="test">Test</button>
+      <button class="tab" data-tab="export">Export</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </nav>
+    <div class="sys" id="sys">
+      <div class="sys-dot" id="sysDot"></div>
+      <div><div id="sysTitle">Checking engine…</div><div class="muted small" id="sysSub"></div></div>
+    </div>
+  </aside>
+
+  <main>
+    <!-- TRAIN -->
+    <section class="view active" id="view-train">
+      <div class="train-grid">
+        <div class="config" id="trainForm"></div>
+        <div class="run">
+          <div class="run-head">
+            <div>
+              <h2>Run</h2>
+              <div class="muted" id="status">Idle</div>
+            </div>
+            <div class="buttons">
+              <button class="btn primary" id="startBtn">Start training</button>
+              <button class="btn danger" id="stopBtn" disabled>Stop &amp; save</button>
+            </div>
+          </div>
+          <div class="progress"><div class="bar" id="bar"></div></div>
+          <div class="tiles">
+            <div class="tile"><div class="tl">Step</div><div class="tv" id="tStep">–</div></div>
+            <div class="tile"><div class="tl">Loss</div><div class="tv" id="tLoss">–</div></div>
+            <div class="tile"><div class="tl">Tokens / s</div><div class="tv" id="tTok">–</div></div>
+            <div class="tile"><div class="tl">Peak VRAM</div><div class="tv" id="tMem">–</div></div>
+            <div class="tile"><div class="tl">ETA</div><div class="tv" id="tEta">–</div></div>
+          </div>
+          <div class="chart-wrap"><canvas id="chart"></canvas><div class="chart-empty" id="chartEmpty">Loss curve appears here</div></div>
+          <div class="result" id="result" hidden></div>
+          <div class="log" id="log" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TEST -->
+    <section class="view" id="view-test">
+      <div class="page">
+        <h2>Test your adapter</h2>
+        <p class="muted">Generate with a trained adapter to sanity-check it. The base model is read from the adapter folder.</p>
+        <div class="form" id="testForm"></div>
+        <div class="buttons"><button class="btn primary" id="genBtn">Generate</button><span class="muted" id="genStatus"></span></div>
+        <pre class="output" id="genOut" aria-live="polite"></pre>
+      </div>
+    </section>
+
+    <!-- EXPORT -->
+    <section class="view" id="view-export">
+      <div class="page">
+        <h2>Export merged model</h2>
+        <p class="muted">Merges the LoRA weights into the base model and saves standard Hugging Face safetensors you can load anywhere. For GGUF, point llama.cpp's converter at the output folder.</p>
+        <div class="form" id="exportForm"></div>
+        <div class="buttons"><button class="btn primary" id="exportBtn">Merge &amp; export</button><span class="muted" id="exportStatus"></span></div>
+        <div class="result" id="exportResult" hidden></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <div class="page">
+        <h2>Settings</h2>
+        <div class="form" id="settingsForm"></div>
+        <div class="buttons"><button class="btn" id="recheckBtn">Re-check engine</button></div>
+        <table class="info" id="infoTable"></table>
+        <div class="help" id="setupHelp" hidden>
+          <h3>Engine not ready</h3>
+          <p id="setupMsg"></p>
+          <p>Run the setup script from the Kangaroo folder, then restart the app:</p>
+          <pre>powershell -ExecutionPolicy Bypass -File scripts\setup.ps1      # Windows
+bash scripts/setup.sh                                            # macOS / Linux</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
