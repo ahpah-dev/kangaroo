@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('kangaroo', {
   start: (command, config, python) => ipcRenderer.invoke('engine:start', command, config, python),
+  setup: (choice) => ipcRenderer.invoke('setup:start', choice),
   cancel: () => ipcRenderer.invoke('engine:cancel'),
   running: () => ipcRenderer.invoke('engine:running'),
   pick: (kind, options) => ipcRenderer.invoke('dialog:pick', kind, options),

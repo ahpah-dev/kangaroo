@@ -1,0 +1,6 @@
+transformers>=4.56
+peft>=0.13
+tokenizers
+accelerate
+bitsandbytes>=0.43; sys_platform != "darwin"
+datasets

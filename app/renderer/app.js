@@ -59,7 +59,7 @@ const EXPORT_FIELDS = [
   { key: 'precision', label: 'Precision', type: 'select', def: 'bf16', options: ['bf16', 'fp16', 'fp32'] },
 ];
 const SETTINGS_FIELDS = [
-  { key: 'python', label: 'Python interpreter', type: 'path', def: '', pick: 'file', full: true, hint: 'Leave empty to use the project .venv, then PATH' },
+  { key: 'python', label: 'Python interpreter', type: 'path', def: '', pick: 'file', full: true, hint: 'Leave empty to use the engine Kangaroo installed, then the project .venv, then PATH' },
 ];
 
 // ---------------------------------------------------------------- form building
@@ -379,6 +379,7 @@ function onInfo(ev) {
     $('sysSub').textContent = 'See Settings';
     $('setupMsg').textContent = ev.message || 'The Python engine could not start.';
     $('setupHelp').hidden = false;
+    if (!setupBusy) showTab('settings');
     $('infoTable').replaceChildren();
   }
 }
@@ -389,8 +390,34 @@ function checkEngine() {
 }
 $('recheckBtn').addEventListener('click', checkEngine);
 
+// ---------------------------------------------------------------- in-app engine installer
+let setupBusy = false;
+function setupLine(text, cls = '') {
+  const box = $('setupLog'); box.hidden = false;
+  box.append(el('div', { class: cls, text }));
+  while (box.childElementCount > 800) box.firstChild.remove();
+  box.scrollTop = box.scrollHeight;
+}
+$('setupBtn').addEventListener('click', async () => {
+  $('setupLog').replaceChildren();
+  const res = await api.setup($('setupTorch').value);
+  if (!res.ok) { $('setupStep').textContent = res.error || 'Could not start setup.'; return; }
+  setupBusy = true; $('setupBtn').disabled = true; $('setupTorch').disabled = true;
+  $('setupStep').textContent = 'Starting…';
+});
+function onSetupEvent(ev) {
+  if (ev.event === 'setup_step') { $('setupStep').textContent = ev.name + '…'; setupLine('> ' + ev.name, 'dim'); }
+  else if (ev.event === 'setup_log') setupLine(ev.message);
+  else if (ev.event === 'setup_done' || ev.event === 'setup_error') {
+    setupBusy = false; $('setupBtn').disabled = false; $('setupTorch').disabled = false;
+    if (ev.event === 'setup_done') { $('setupStep').textContent = 'Installed. Checking…'; setupLine('Engine installed.', 'good'); checkEngine(); }
+    else { $('setupStep').textContent = 'Setup failed.'; setupLine(ev.message, 'err'); }
+  }
+}
+
 // ---------------------------------------------------------------- event routing
 api.onEvent((ev) => {
+  if (ev.event.startsWith('setup_')) { onSetupEvent(ev); return; }
   if (ev.event === 'info' || ev.event === 'info_error') { onInfo(ev); return; }
   if (!job) return;
   if (job.kind === 'train') onTrainEvent(ev);

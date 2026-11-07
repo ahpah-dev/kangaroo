@@ -75,3 +75,4 @@ input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
 .info td:first-child { color: var(--muted); width: 140px; }
 .help { margin-top: 16px; border: 1px solid var(--warn); border-radius: 10px; padding: 12px 14px; background: rgba(229, 185, 75, .06); } .help[hidden] { display: none; }
 .form { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 14px 0; }
+.setup-log { margin-top: 10px; height: 180px; flex: none; } .setup-log[hidden] { display: none; } .help .row { margin: 10px 0; } .help select { flex: 1; }

@@ -8,14 +8,28 @@ const path = require('node:path');
 
 const COMMANDS = new Set(['train', 'generate', 'export', 'info']);
 const REPO_ROOT = path.resolve(__dirname, '..');
+// Packaged builds ship the engine under <resources>/engine; from source it lives in <repo>/src.
+const PACKAGED_ENGINE = process.resourcesPath ? path.join(process.resourcesPath, 'engine') : null;
+const ENGINE_DIR = PACKAGED_ENGINE && fs.existsSync(PACKAGED_ENGINE) ? PACKAGED_ENGINE : path.join(REPO_ROOT, 'src');
+const REQUIREMENTS = path.join(ENGINE_DIR === PACKAGED_ENGINE ? ENGINE_DIR : REPO_ROOT, 'requirements.txt');
+
+const venvPython = (dir) => (process.platform === 'win32'
+  ? path.join(dir, 'Scripts', 'python.exe')
+  : path.join(dir, 'bin', 'python'));
+
+/** The private environment created by the in-app "Install engine" button. */
+function managedVenvDir() {
+  const home = process.env.KANGAROO_HOME;
+  return home ? path.join(home, 'engine-venv') : null;
+}
 
 function resolvePython(preferred) {
   if (preferred && String(preferred).trim()) return String(preferred).trim();
   if (process.env.KANGAROO_PYTHON) return process.env.KANGAROO_PYTHON;
-  const venv = process.platform === 'win32'
-    ? path.join(REPO_ROOT, '.venv', 'Scripts', 'python.exe')
-    : path.join(REPO_ROOT, '.venv', 'bin', 'python');
-  if (fs.existsSync(venv)) return venv;
+  const managed = managedVenvDir();
+  for (const dir of [managed, path.join(REPO_ROOT, '.venv')]) {
+    if (dir && fs.existsSync(venvPython(dir))) return venvPython(dir);
+  }
   return process.platform === 'win32' ? 'python' : 'python3';
 }
 
@@ -70,7 +84,7 @@ class Engine {
     if (command !== 'info') args.push('--config', cfgFile);
     const env = {
       ...process.env,
-      PYTHONPATH: [path.join(REPO_ROOT, 'src'), process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
+      PYTHONPATH: [ENGINE_DIR, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
       PYTHONUNBUFFERED: '1',
       PYTHONUTF8: '1',
       PYTHONIOENCODING: 'utf-8',
@@ -134,4 +148,4 @@ class Engine {
   kill() { killTree(this.child); }
 }
 
-module.exports = { Engine, lineSplitter, resolvePython, COMMANDS, REPO_ROOT };
+module.exports = { Engine, lineSplitter, resolvePython, venvPython, managedVenvDir, COMMANDS, REPO_ROOT, ENGINE_DIR, REQUIREMENTS };

@@ -8,12 +8,64 @@
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke",
-    "test": "node --test"
+    "test": "node --test",
+    "dist": "electron-builder --win nsis --x64",
+    "pack": "electron-builder --dir"
   },
   "devDependencies": {
-    "electron": "^39.0.0"
+    "electron": "^39.0.0",
+    "electron-builder": "^26.18.0"
   },
   "allowScripts": {
     "electron@39.8.10": true
+  },
+  "author": "ahpah-dev",
+  "homepage": "https://github.com/ahpah-dev/kangaroo",
+  "build": {
+    "appId": "io.github.ahpah-dev.kangaroo",
+    "productName": "Kangaroo",
+    "copyright": "Public domain (Unlicense)",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "engine.js",
+      "setup.js",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../src/kangaroo",
+        "to": "engine/kangaroo",
+        "filter": [
+          "**/*.py"
+        ]
+      },
+      {
+        "from": "../requirements.txt",
+        "to": "engine/requirements.txt"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Kangaroo-Setup-${version}.exe",
+      "shortcutName": "Kangaroo"
+    }
   }
 }

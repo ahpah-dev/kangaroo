@@ -2,7 +2,10 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+// The in-app installer creates its private Python environment under the user-data folder.
+process.env.KANGAROO_HOME = process.env.KANGAROO_HOME || app.getPath('userData');
 const { Engine } = require('./engine');
+const { installEngine } = require('./setup');
 
 const SMOKE = process.argv.includes('--smoke');
 let win = null;
@@ -40,6 +43,15 @@ ipcMain.handle('engine:start', async (_e, command, config, python) => {
   if (engine.running && (engine.kind === 'info' || engine.finishing)) await engine.exited;
   if (engine.running) return { ok: false, error: 'A job is already running.' };
   engine.start(command, config && typeof config === 'object' ? config : {}, typeof python === 'string' ? python : '');
+  return { ok: true };
+});
+let setupRunning = false;
+ipcMain.handle('setup:start', (_e, choice) => {
+  if (setupRunning || engine.running) return { ok: false, error: 'Another job is running.' };
+  const torch = ['auto', 'cuda', 'cpu'].includes(choice) ? choice : 'auto';
+  setupRunning = true;
+  installEngine((ev) => { if (win && !win.isDestroyed()) win.webContents.send('engine:event', ev); }, torch)
+    .finally(() => { setupRunning = false; });
   return { ok: true };
 });
 ipcMain.handle('engine:cancel', () => engine.cancel());

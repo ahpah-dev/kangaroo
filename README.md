@@ -36,6 +36,18 @@ in a LoRA run, and leaves everything else to the libraries you already trust.
 
 ## Install
 
+### Windows installer (easiest)
+
+Download **`Kangaroo-Setup-0.1.0.exe`** from the [latest release](https://github.com/ahpah-dev/kangaroo/releases/latest)
+and run it. On first launch the app opens **Settings** and offers an **Install engine** button, which creates a private
+Python environment and installs PyTorch (CUDA 12.8 if an NVIDIA GPU is detected, otherwise CPU) plus Transformers and PEFT.
+You need **Python 3.10+** installed beforehand (python.org; tick "Add python.exe to PATH"). The GPU download is about 3 GB.
+
+> The installer is **not code-signed**, so Windows SmartScreen will warn you ("Windows protected your PC" → *More info* →
+> *Run anyway*). It is built from this repository by `npm run dist` in `app/`.
+
+### From source
+
 Requirements: Python ≥ 3.10, Node ≥ 20, and (for GPU training) an NVIDIA GPU with a recent driver.
 
 ```powershell
@@ -117,7 +129,7 @@ the other tool's `batch_size × seq_len × grad_accum`. If you do, please share 
 * LoRA adapters only (no full fine-tuning, no embedding training, no DoRA yet). Single GPU.
 * No custom Triton kernels and no GGUF export of its own.
 * The engine runs on CPU for testing, but training real models there is slow.
-* Packaged installers are not built yet; the app runs from source.
+* The installer is Windows-only, unsigned, and does not bundle Python (it sets up a venv from your system Python).
 
 ## Development
 
@@ -125,6 +137,7 @@ the other tool's `batch_size × seq_len × grad_accum`. If you do, please share 
 python -m pip install -e ".[dev]"
 python -m pytest                 # engine tests (CPU, offline, ~30 s)
 cd app && npm install && node --test
+cd app && npm run dist           # builds dist/Kangaroo-Setup-<version>.exe
 bash scripts/smoke-e2e.sh        # drives the real Electron UI end to end (CPU, offline)
 ```
 
